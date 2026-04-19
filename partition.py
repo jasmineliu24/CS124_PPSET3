@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
 """
-CS 1240 Programming Assignment 3: Number Partition
-Usage: python3 partition.py <flag> <algorithm> <inputfile>
-
-Algorithm codes:
-  0  - Karmarkar-Karp
-  1  - Repeated Random (standard)
-  2  - Hill Climbing (standard)
-  3  - Simulated Annealing (standard)
-  11 - Prepartitioned Repeated Random
-  12 - Prepartitioned Hill Climbing
-  13 - Prepartitioned Simulated Annealing
+Algorithms:
+  0  Karmarkar-Karp
+  1  Repeated Random
+  2  Hill Climbing
+  3  Simulated Annealing
+  11 Prepartitioned Repeated Random
+  12 Prepartitioned Hill Climbing
+  13 Prepartitioned Simulated Annealing
 """
 
 import sys
@@ -18,30 +15,27 @@ import heapq
 import random
 import math
 
-# ─────────────────────────────────────────────
-#  Constants
-# ─────────────────────────────────────────────
-MAX_ITER = 25000
+ITERATIONS = 25000
 
 
-# ─────────────────────────────────────────────
 #  Karmarkar-Karp (KK)
-# ─────────────────────────────────────────────
+
 def kk(A):
     """
-    Karmarkar-Karp algorithm using a max-heap.
-    Repeatedly differences the two largest elements until one remains.
-    O(n log n) time.
+    Karmarkar-Karp algorithm using max-heap
+    Replace larger with difference between 2 elements
+    Replace smaller with 0
+    O(n log n) time
     """
     # Python's heapq is a min-heap, so negate values for max-heap behavior
     heap = [-x for x in A]
     heapq.heapify(heap)
 
     while len(heap) > 1:
-        largest = -heapq.heappop(heap)
-        second  = -heapq.heappop(heap)
-        diff = largest - second          # always >= 0
-        heapq.heappush(heap, -diff)
+        larger = -heapq.heappop(heap)
+        smaller  = -heapq.heappop(heap)
+        d = larger - smaller
+        heapq.heappush(heap, -d)
 
     return abs(-heap[0])
 
@@ -72,24 +66,25 @@ def std_residue(S, A):
     return abs(sum(s * a for s, a in zip(S, A)))
 
 
-# ─────────────────────────────────────────────
 #  Prepartition representation helpers
-#  P[i] in {1..n}, residue computed via KK on A'
-# ─────────────────────────────────────────────
+# - turn A into A' using P
+# - run KK on A'
+# - return residue of A'
+
 def pp_random_solution(n):
     return [random.randint(1, n) for _ in range(n)]
 
 
 def pp_random_neighbor(P):
     """
-    Choose random index i and new group j != P[i].
-    Returns a new list (does not mutate P).
+    Choose random index i and new group j != P[i]
+    Return new list
     """
     P = P[:]
     n = len(P)
     i = random.randrange(n)
     j = random.randint(1, n - 1)
-    if j >= P[i]:          # skip over current value to ensure j != P[i]
+    if j >= P[i]:
         j += 1
     P[i] = j
     return P
@@ -122,7 +117,7 @@ def repeated_random(A, rand_sol, residue_fn):
     S = rand_sol()
     best_res = residue_fn(S, A)
 
-    for _ in range(MAX_ITER):
+    for _ in range(ITERATIONS):
         S_prime = rand_sol()
         r_prime = residue_fn(S_prime, A)
         if r_prime < best_res:
@@ -136,7 +131,7 @@ def hill_climbing(A, rand_sol, rand_neighbor, residue_fn):
     S = rand_sol()
     best_res = residue_fn(S, A)
 
-    for _ in range(MAX_ITER):
+    for _ in range(ITERATIONS):
         S_prime = rand_neighbor(S)
         r_prime = residue_fn(S_prime, A)
         if r_prime < best_res:
@@ -152,7 +147,7 @@ def simulated_annealing(A, rand_sol, rand_neighbor, residue_fn):
     best_res = cur_res
     S_best = S
 
-    for it in range(1, MAX_ITER + 1):
+    for it in range(1, ITERATIONS + 1):
         S_prime = rand_neighbor(S)
         r_prime = residue_fn(S_prime, A)
         delta = r_prime - cur_res
