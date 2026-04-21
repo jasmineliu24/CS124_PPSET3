@@ -11,11 +11,65 @@ Algorithms (like the guidelines) :
 """
 
 import sys
-import heapq
 import random
 import math
 
 defaultIterations = 25000
+
+
+# --- Binary min-heap (list-based, 0-based indexing) for Karmarkar-Karp ---
+
+def minHeapSiftDown(heap, index):
+    """Restore min-heap property assuming children of index are valid heaps."""
+    length = len(heap)
+    while True:
+        smallest = index
+        left = 2 * index + 1
+        right = 2 * index + 2
+        if left < length and heap[left] < heap[smallest]:
+            smallest = left
+        if right < length and heap[right] < heap[smallest]:
+            smallest = right
+        if smallest == index:
+            break
+        heap[index], heap[smallest] = heap[smallest], heap[index]
+        index = smallest
+
+
+def minHeapSiftUp(heap, index):
+    """Bubble heap[index] up until the min-heap property holds."""
+    while index > 0:
+        parent = (index - 1) // 2
+        if heap[index] < heap[parent]:
+            heap[index], heap[parent] = heap[parent], heap[index]
+            index = parent
+        else:
+            break
+
+
+def minHeapify(heap):
+    """Turn heap into a min-heap in O(n)."""
+    n = len(heap)
+    for i in range(n // 2 - 1, -1, -1):
+        minHeapSiftDown(heap, i)
+
+
+def minHeappush(heap, item):
+    heap.append(item)
+    minHeapSiftUp(heap, len(heap) - 1)
+
+
+def minHeappop(heap):
+    """Remove and return the smallest element."""
+    last = len(heap) - 1
+    if last < 0:
+        raise IndexError("pop from empty heap")
+    if last == 0:
+        return heap.pop()
+    root = heap[0]
+    heap[0] = heap.pop()
+    minHeapSiftDown(heap, 0)
+    return root
 
 
 #  Karmarkar-Karp (KK)
@@ -25,7 +79,7 @@ def kk(A):
     if not A:
         return 0
     heap = [-x for x in A]
-    heapq.heapify(heap)
+    minHeapify(heap)
 
     def earlyExitResidue():
         # If at most one positive value remains (rest are zeros), no further differencing can change the residue
@@ -41,16 +95,82 @@ def kk(A):
         return r
 
     while len(heap) > 1:
-        larger = -heapq.heappop(heap)
-        smaller = -heapq.heappop(heap)
+        larger = -minHeappop(heap)
+        smaller = -minHeappop(heap)
         d = larger - smaller
-        heapq.heappush(heap, -d)
+        minHeappush(heap, -d)
         r = earlyExitResidue()
         if r is not None:
             return r
 
     return abs(-heap[0])
 
+
+class KkMergeNode:
+    """Merge tree for Karmarkar–Karp; leaves are original indices, internal = |high − low|."""
+    __slots__ = ("value", "leafIndex", "high", "low")
+
+    def __init__(self, value, leafIndex=None, high=None, low=None):
+        self.value = value
+        self.leafIndex = leafIndex
+        self.high = high
+        self.low = low
+
+    def isLeaf(self):
+        return self.leafIndex is not None
+
+
+def initialSignsFromKk(A):
+    """
+    Build the same multiset merges as kk (no early exit), then two-color the merge tree
+    to obtain a sign vector S with stdResidue(S, A) == kk(A).
+    """
+    n = len(A)
+    if n == 0:
+        return []
+    if n == 1:
+        return [1]
+    nodes = {}
+    heap = []
+    nextUid = 0
+    for i, val in enumerate(A):
+        nodes[nextUid] = KkMergeNode(val, leafIndex=i)
+        minHeappush(heap, (-val, nextUid))
+        nextUid += 1
+    while len(heap) > 1:
+        negV1, id1 = minHeappop(heap)
+        negV2, id2 = minHeappop(heap)
+        v1, v2 = -negV1, -negV2
+        if v1 < v2:
+            v1, v2, id1, id2 = v2, v1, id2, id1
+        highNode = nodes[id1]
+        lowNode = nodes[id2]
+        parentVal = abs(v1 - v2)
+        parent = KkMergeNode(parentVal, high=highNode, low=lowNode)
+        nodes[nextUid] = parent
+        minHeappush(heap, (-parentVal, nextUid))
+        nextUid += 1
+    _, rootId = heap[0]
+    root = nodes[rootId]
+    signs = [0] * n
+
+    def assign(node, sign):
+        if node.isLeaf():
+            signs[node.leafIndex] = sign
+        else:
+            assign(node.high, sign)
+            assign(node.low, -sign)
+
+    assign(root, 1)
+    for i in range(n):
+        if signs[i] == 0:
+            signs[i] = 1
+    return signs
+
+
+def initialPrepartitionFromSigns(signs):
+    """Map ±1 signs to labels {1,2} so ppResidue matches the same split as signs (two blocks)."""
+    return [1 if s == 1 else 2 for s in signs]
 
 
 def stdRandomSolution(n):
@@ -112,8 +232,11 @@ def temperature(iteration):
 
 #  Generic algorithm implementations
 
-def repeatedRandom(A, randSol, residueFn):
-    S = randSol()
+def repeatedRandom(A, randSol, residueFn, initialSolution=None):
+    if initialSolution is None:
+        S = randSol()
+    else:
+        S = list(initialSolution)
     bestRes = residueFn(S, A)
 
     for _ in range(defaultIterations):
@@ -126,8 +249,11 @@ def repeatedRandom(A, randSol, residueFn):
     return bestRes
 
 
-def hillClimbing(A, randSol, randNeighbor, residueFn):
-    S = randSol()
+def hillClimbing(A, randSol, randNeighbor, residueFn, initialSolution=None):
+    if initialSolution is None:
+        S = randSol()
+    else:
+        S = list(initialSolution)
     bestRes = residueFn(S, A)
 
     for _ in range(defaultIterations):
@@ -140,8 +266,11 @@ def hillClimbing(A, randSol, randNeighbor, residueFn):
     return bestRes
 
 
-def simulatedAnnealing(A, randSol, randNeighbor, residueFn):
-    S = randSol()
+def simulatedAnnealing(A, randSol, randNeighbor, residueFn, initialSolution=None):
+    if initialSolution is None:
+        S = randSol()
+    else:
+        S = list(initialSolution)
     curRes = residueFn(S, A)
     bestRes = curRes
 

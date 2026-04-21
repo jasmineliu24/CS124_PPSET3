@@ -4,7 +4,7 @@ Empirical runtime comparison for partition.py heuristics.
 
 Usage:
   python3 runtime_analysis.py              # line plot vs n → runtime_graph.png
-  python3 runtime_analysis.py --quick      # faster line plot
+  python3 runtime_analysis.py --quick      # smaller n grid, fewer timing repeats
   python3 runtime_analysis.py --bar-chart  # avg time over 50 instances → runtime_bar_chart.png
 """
 
@@ -41,32 +41,37 @@ def time_call(fn, *, repeats: int) -> float:
     return statistics.median(times)
 
 
+def set_benchmark_iterations(count: int) -> None:
+    """Randomized heuristics read P.defaultIterations each run."""
+    P.defaultIterations = count
+
+
 def algorithm_runners():
     """Return (code, line_label, bar_label, runner) list; runner(A, n)."""
     return [
         (0, "KK", "KK", lambda A, n: P.kk(A)),
-        (1, "RR (std)", "RR", lambda A, n: P.repeated_random(A, lambda: P.std_random_solution(n), P.std_residue)),
-        (2, "HC (std)", "HC", lambda A, n: P.hill_climbing(A, lambda: P.std_random_solution(n), P.std_random_neighbor, P.std_residue)),
-        (3, "SA (std)", "SA", lambda A, n: P.simulated_annealing(A, lambda: P.std_random_solution(n), P.std_random_neighbor, P.std_residue)),
-        (11, "RR (pp)", "PPRR", lambda A, n: P.repeated_random(A, lambda: P.pp_random_solution(n), P.pp_residue)),
-        (12, "HC (pp)", "PPHC", lambda A, n: P.hill_climbing(A, lambda: P.pp_random_solution(n), P.pp_random_neighbor, P.pp_residue)),
-        (13, "SA (pp)", "PPSA", lambda A, n: P.simulated_annealing(A, lambda: P.pp_random_solution(n), P.pp_random_neighbor, P.pp_residue)),
+        (1, "RR (std)", "RR", lambda A, n: P.repeatedRandom(A, lambda: P.stdRandomSolution(n), P.stdResidue)),
+        (2, "HC (std)", "HC", lambda A, n: P.hillClimbing(A, lambda: P.stdRandomSolution(n), P.stdRandomNeighbor, P.stdResidue)),
+        (3, "SA (std)", "SA", lambda A, n: P.simulatedAnnealing(A, lambda: P.stdRandomSolution(n), P.stdRandomNeighbor, P.stdResidue)),
+        (11, "RR (pp)", "PPRR", lambda A, n: P.repeatedRandom(A, lambda: P.ppRandomSolution(n), P.ppResidue)),
+        (12, "HC (pp)", "PPHC", lambda A, n: P.hillClimbing(A, lambda: P.ppRandomSolution(n), P.ppRandomNeighbor, P.ppResidue)),
+        (13, "SA (pp)", "PPSA", lambda A, n: P.simulatedAnnealing(A, lambda: P.ppRandomSolution(n), P.ppRandomNeighbor, P.ppResidue)),
     ]
 
 
 def run_bar_chart(*, instances: int, n: int, quick: bool, out_path: Path) -> None:
     if quick:
-        P.ITERATIONS = 3000
+        set_benchmark_iterations(25000)
         inst = min(instances, 10)
     else:
-        P.ITERATIONS = 25000
+        set_benchmark_iterations(25000)
         inst = instances
 
     algorithms = algorithm_runners()
     avgs: list[float] = []
     labels: list[str] = []
 
-    print(f"Bar chart: n={n}, instances={inst}, ITERATIONS={P.ITERATIONS}")
+    print(f"Bar chart: n={n}, instances={inst}, defaultIterations={P.defaultIterations}")
     print(f"{'algo':>6} | {'avg_s':>12}")
     print("-" * 22)
 
@@ -125,14 +130,15 @@ def main() -> None:
         )
         return
 
+    # Pset-style experiment budget: 25_000 iterations for all randomized heuristics.
+    set_benchmark_iterations(25000)
+
     if args.quick:
         ns = [20, 40, 80, 120]
         trials = 2
-        P.ITERATIONS = 3000
     else:
         ns = [25, 50, 100, 150, 200, 300]
         trials = 3
-        P.ITERATIONS = 8000
 
     algorithms = [(c, lab, fn) for c, lab, _b, fn in algorithm_runners()]
 
@@ -141,7 +147,7 @@ def main() -> None:
     for code, label, _ in algorithms:
         series[(code, label)] = []
 
-    print(f"ITERATIONS (patched for benchmark) = {P.ITERATIONS}")
+    print(f"defaultIterations (benchmark) = {P.defaultIterations}")
     print(f"{'n':>6} | " + " | ".join(f"{lab:>12}" for _, lab, _ in algorithms))
     print("-" * (8 + 14 * len(algorithms)))
 
@@ -173,7 +179,7 @@ def main() -> None:
         ax.plot(ns, series[(code, label)], label=label, **styles.get(code, {}))
 
     ax.set_xlabel("Input size n (number of integers)")
-    ax.set_ylabel(f"Wall time (s), ITERATIONS={P.ITERATIONS}")
+    ax.set_ylabel(f"Wall time (s), defaultIterations={P.defaultIterations}")
     ax.set_title("Empirical runtime: partition heuristics")
     ax.legend(loc="upper left", fontsize=8)
     ax.grid(True, alpha=0.3)
