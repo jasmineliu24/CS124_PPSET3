@@ -22,7 +22,7 @@ defaultIterations = 25000
 # and then negate values to be a max heap
 
 def minHeapSiftDown(heap, index):
-    """Restore min-heap property assuming children of index are valid heaps."""
+    # Restore min-heap property assuming children of index are valid heaps.
     length = len(heap)
     while True:
         smallest = index
@@ -39,7 +39,7 @@ def minHeapSiftDown(heap, index):
 
 
 def minHeapSiftUp(heap, index):
-    """Bubble heap[index] up until the min-heap property holds."""
+    # min-heap property holds
     while index > 0:
         parent = (index - 1) // 2
         if heap[index] < heap[parent]:
@@ -50,7 +50,7 @@ def minHeapSiftUp(heap, index):
 
 
 def minHeapify(heap):
-    """Turn heap into a min-heap in O(n)."""
+    # Turn heap into a min-heap in O(n)
     n = len(heap)
     for i in range(n // 2 - 1, -1, -1):
         minHeapSiftDown(heap, i)
@@ -62,7 +62,7 @@ def minHeappush(heap, item):
 
 
 def minHeappop(heap):
-    """Remove and return the smallest element."""
+    # Remove and return the smallest element
     last = len(heap) - 1
     if last < 0:
         raise IndexError("pop from empty heap")
@@ -109,7 +109,7 @@ def kk(A):
 
 
 class KkMergeNode:
-    """Merge tree for Karmarkar–Karp; leaves are original indices, internal = |high − low|."""
+    # Merge tree for Karmarkar–Karp
     __slots__ = ("value", "leafIndex", "high", "low")
 
     def __init__(self, value, leafIndex=None, high=None, low=None):
@@ -123,10 +123,7 @@ class KkMergeNode:
 
 
 def initialSignsFromKk(A):
-    """
-    Build the same multiset merges as kk (no early exit), then two-color the merge tree
-    to obtain a sign vector S with stdResidue(S, A) == kk(A).
-    """
+    # get the sign vector S
     n = len(A)
     if n == 0:
         return []
@@ -171,7 +168,7 @@ def initialSignsFromKk(A):
 
 
 def initialPrepartitionFromSigns(signs):
-    """Map ±1 signs to labels {1,2} so ppResidue matches the same split as signs (two blocks)."""
+    #pre partitioning representation
     return [1 if s == 1 else 2 for s in signs]
 
 
