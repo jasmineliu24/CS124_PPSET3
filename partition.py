@@ -17,7 +17,9 @@ import math
 defaultIterations = 25000
 
 
-# --- Binary min-heap (list-based, 0-based indexing) for Karmarkar-Karp ---
+# Binary min-heap (list-based, 0-based indexing) for Karmarkar-Karp
+# I've implemented minHeap before, so it felt easier to just implement that
+# and then negate values to be a max heap
 
 def minHeapSiftDown(heap, index):
     """Restore min-heap property assuming children of index are valid heaps."""
